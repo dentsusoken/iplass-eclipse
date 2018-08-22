@@ -1,0 +1,10 @@
+/.gradle/
+/bin/
+/lib/
+/META-INF/
+/build.properties
+/build/
+.classpath
+.project
+/.settings/
+/eclipse/sdk/

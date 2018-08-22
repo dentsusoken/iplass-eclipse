@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+	<!-- import wizard -->
+	<extension
+		point="org.eclipse.ui.importWizards">
+		 <category
+            name="iPLAss"
+            id="iplass.importWizards">
+      </category>
+      <wizard
+            name="iPLAss MetaData Import"
+            icon="icons/cube_yellow.png"
+            category="iplass.importWizards"
+            class="org.iplass.mtp.eclipse.ui.importwizard.MetaDataImportWizard"
+            id="org.iplass.mtp.eclipse.ui.importwizard.MetaDataImportWizard">
+      </wizard>
+	</extension>
+	
+	<!-- 
+	  menu
+	 -->
+	<!-- command -->
+	<extension point="org.eclipse.ui.commands">
+		<category
+            name="iPLAss"
+            id="iplass.commands.category">
+		</category>
+		<command
+            name="Refresh entity metadata from database"
+            categoryId="iplass.commands.category"
+            id="org.iplass.mtp.eclipse.ui.command.EntityMetaDataImportCommand">
+		</command>
+	</extension>
+	
+	<!-- handler -->
+	<extension point="org.eclipse.ui.handlers">
+		<handler
+			commandId="org.iplass.mtp.eclipse.ui.command.EntityMetaDataImportCommand"
+			class="org.iplass.mtp.eclipse.ui.menu.EntityMetaDataImportHandler">
+		</handler>
+	</extension>
+	
+	<!-- key bindings -->
+	<extension point="org.eclipse.ui.bindings">
+		<key
+			commandId="org.iplass.mtp.eclipse.ui.command.EntityMetaDataImportCommand"
+			contextId="org.eclipse.ui.contexts.window"
+			sequence="M2+E"
+			schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
+		</key>
+	</extension>
+   
+	<!-- menu -->
+	<extension
+		point="org.eclipse.ui.menus">
+		<menuContribution
+            locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+            <menu
+				label="iPLAss"
+				path="additions"
+				id="iplass.menu">
+				<separator
+				 name="iplass.menu.group1">
+				</separator>
+				<command 
+					icon="icons/refresh.png"
+					commandId="org.iplass.mtp.eclipse.ui.command.EntityMetaDataImportCommand"
+					id="iplass.menu.group1.command.EntityMetaDataImportCommand">					
+					<visibleWhen>
+						<with variable="selection">
+							<iterate ifEmpty="false" operator="or">
+								<or>
+									<instanceof value="org.eclipse.core.resources.IProject"/>
+									<instanceof value="org.eclipse.core.resources.IFolder"/>
+									<instanceof value="org.eclipse.core.resources.IFile"/>
+									<instanceof value="org.eclipse.jdt.core.IJavaProject"/>
+								</or>
+							</iterate>
+						</with>
+					</visibleWhen>
+				</command>
+			</menu>
+		</menuContribution>
+	</extension>
+	
+	<!-- preferences -->
+	<extension point="org.eclipse.core.runtime.preferences">
+		<initializer class="org.iplass.mtp.eclipse.ui.PreferenceInitializer" />
+	</extension>
+	<extension point="org.eclipse.ui.preferencePages">
+		<page 
+			class="org.iplass.mtp.eclipse.ui.PreferencePage"
+			id="org.iplass.mtp.eclipse.ui.PreferencePage"
+			name="iPLAss">
+		</page>
+	</extension>
+	
+	<!-- property -->	
+	<extension
+         point="org.eclipse.ui.propertyPages">
+      <page
+            class="org.iplass.mtp.eclipse.ui.ProjectPropertyPage"
+            id="org.iplass.mtp.eclipse.ui.ProjectPropertyPage"
+            name="iPLAss">
+         <enabledWhen>
+            <adapt type="org.eclipse.core.resources.IProject"/>
+         </enabledWhen>
+      </page>
+   </extension>
+</plugin>

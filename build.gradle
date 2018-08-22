@@ -1,0 +1,316 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+ext.qualifier = new Date().format("yyyyMMddHHmm")
+ext.pluginVer = version.replaceAll("-.*", "") + ".v" + qualifier
+ext.manifest = "META-INF/MANIFEST.MF"
+
+repositories {
+	mavenCentral()
+	jcenter {
+		//for jasper reports
+		artifactUrls 'http://jaspersoft.jfrog.io/jaspersoft/third-party-ce-artifacts/'
+	}
+	maven{
+	    url "${mavenUrl}"
+	}
+}
+	
+configurations {
+	libIplass
+	libPde
+}
+
+dependencies {
+	// Project
+	compile ("org.apache.commons:commons-lang3:3.7")
+    
+	// iplass
+	libIplass ("org.iplass:iplass-core:${iPLAssVersion}") { transitive = false }
+	
+	// PDE <eclipseInstallDir>/plugins/
+	// TODO define per eclipse versions
+	libPde ('org.eclipse.platform:org.eclipse.osgi:3.11.3') { transitive = false }
+	libPde ('org.eclipse.platform:org.eclipse.core.runtime:3.12.0') { transitive = false }
+	libPde ('org.eclipse.platform:org.eclipse.core.resources:3.11.1') { transitive = false }
+	libPde ('org.eclipse.platform:org.eclipse.core.jobs:3.8.0') { transitive = false }
+	libPde ('org.eclipse.platform:org.eclipse.core.commands:3.8.1') { transitive = false }
+	libPde ('org.eclipse.platform:org.eclipse.ui.workbench:3.108.3') { transitive = false }
+	libPde ('org.eclipse.platform:org.eclipse.jface:3.12.2') { transitive = false }
+	libPde ('org.eclipse.platform:org.eclipse.equinox.common:3.8.0') { transitive = false }
+	libPde ('org.eclipse.platform:org.eclipse.equinox.preferences:3.6.1') { transitive = false }
+	libPde ('org.eclipse.platform:org.eclipse.swt:3.105.3')  { transitive = false }
+	libPde ('org.eclipse.platform:org.eclipse.swt.win32.win32.x86_64:3.105.3') { transitive = false }
+	libPde ('org.eclipse.jdt:org.eclipse.jdt.core:3.12.3') { transitive = false }
+	libPde ('org.eclipse.jdt:org.eclipse.jdt.ui:3.12.2') { transitive = false }
+
+	testCompile 'junit:junit:4.12'
+}
+
+eclipse {
+	project {
+		buildCommand 'org.eclipse.buildship.core.gradleprojectbuilder'
+		buildCommand 'net.sf.eclipsecs.core.CheckstyleBuilder'
+		buildCommand 'org.eclipse.pde.ManifestBuilder'
+		buildCommand 'org.eclipse.pde.SchemaBuilder'
+		
+		natures 'org.eclipse.buildship.core.gradleprojectnature'
+		natures 'org.eclipse.pde.PluginNature'
+	}
+	
+	classpath {	
+		plusConfigurations += [ configurations.libIplass ]
+		
+		containers 'org.eclipse.pde.core.requiredPlugins'
+		containers 'org.eclipse.buildship.core.gradleclasspathcontainer'
+
+		defaultOutputDir = file('build/classes/main')
+		
+		file {
+			whenMerged {
+				tasks.copyLibs.execute()
+				// exclude iplass jar definitions in MANIFEST.MF with debbuging also. 
+				makeManifest(false, manifest)
+				tasks.refreshBuildProperties.execute()
+			}
+		}
+	}
+}
+
+sourceSets {
+	main.compileClasspath += configurations.libIplass + configurations.libPde
+}
+
+tasks.withType(AbstractCompile) {
+	options.encoding = 'UTF-8'
+}
+
+assemble.dependsOn "pluginZip"
+
+/*
+ * mtpの最新jarバージョンでbuild.propertiesを最新化
+ */
+task refreshBuildProperties {
+	def buildProperties = "build.properties"
+	inputs.files files("build.gradle", "pde/build.properties.tmpl")
+	outputs.file file(buildProperties)
+    
+	doLast {
+		Set<String> jars = new TreeSet<String>();
+		configurations.compile.each { jars.add(it.getName()) }
+		configurations.libIplass.each { jars.add(it.getName()) }
+		
+		def src = new File("${projectDir}/pde/build.properties.tmpl")
+		def tmpPath = "${buildDir}/tmp/build.properties.tmp"
+		ant.mkdir(dir: "${buildDir}/tmp")
+		def dest = new File(tmpPath)
+		dest.withWriter { w ->
+			src.withReader("UTF-8", { r ->
+				def line
+				for(; (line = r.readLine()) != null;) {
+					w.println(line)
+				}
+			})
+						
+			Iterator ite = jars.iterator()
+			while(ite.hasNext()) {
+				def jarName = ite.next();
+				def suf = ite.hasNext() ? ",\\" : ""
+				w.println("               lib/" + jarName + suf)
+			}
+		}
+		ant.move(file: tmpPath , tofile: buildProperties)
+	}
+}
+
+/*
+ * mtpの最新jarバージョンでMANIFEST.MFを最新化
+ */
+def makeManifest(isIncludeIplassJar, toFile) {
+	Set<String> jars = new TreeSet<String>();
+	configurations.compile.each { jars.add(it.getName()) }
+	if (isIncludeIplassJar) {
+		configurations.libIplass.each { jars.add(it.getName()) }
+	}
+	
+	def src = new File("${projectDir}/pde/MANIFEST.MF.tmpl")
+	def tmpPath = "${buildDir}/tmp/MANIFEST.MF.tmp"
+	ant.mkdir(dir: "${buildDir}/tmp")
+	def dest = new File(tmpPath)
+	dest.withWriter { w ->
+		src.withReader("UTF-8", { r ->
+			def line
+			for(; (line = r.readLine()) != null;) {
+				if(line.matches("Bundle-Version:.*")) {
+					w.println("Bundle-Version: ${pluginVer}")
+				} else {
+					w.println(line)
+				}
+			}
+		})
+		
+		def suf = ","
+		Iterator ite = jars.iterator()
+		def jarName = ite.next();
+		
+		w.println("Bundle-ClassPath: lib/" + jarName + suf)
+		while(ite.hasNext()) {
+			jarName = ite.next();
+			w.println(" lib/" + jarName + suf)
+		}
+		w.println(" .")
+	}
+	ant.move(file: tmpPath , tofile: toFile)
+}
+
+task refreshManifest {
+	inputs.files files("build.gradle", "pde/MANIFEST.MF.tmpl")	
+	outputs.file file(manifest)
+    
+	doLast {
+		makeManifest(true, manifest)
+	}
+}
+
+/*
+ * jarを最新化.
+ */
+task copyLibs(type: Copy) {
+	from(configurations.compile)
+	from(configurations.libIplass)
+	into("lib")
+	exclude("*.txt")
+		
+	doFirst {
+		ant.mkdir(dir: "lib")
+		ant.delete() {
+			fileset(dir: "lib") {
+				include(name: "*.jar")
+				// exclude(name: "no_public_maven_repository.jar")
+			}
+		}
+	}
+}
+
+/*
+ *  プラグインのビルド.
+ */
+def pdeRoot = "${buildDir}/eclipse"
+def distDir = "${pdeRoot}/dist"
+def distExDir = "${pdeRoot}/distEx"
+
+task preBuildPlugin(dependsOn: [eclipseProject, eclipseClasspath, eclipseJdt, copyLibs, refreshManifest, refreshBuildProperties, jar]) {	  
+	doLast {
+		def workspaceDir = "${pdeRoot}/workspace"
+		def projectDir = "${workspaceDir}/iplass-eclipse"
+		
+		ant.delete(dir: pdeRoot)
+
+		// Plugin resources
+		// src
+		ant.copy(todir: "${projectDir}/src") {
+			fileset(dir: "src")
+		}
+		// lib
+		copy {
+			from("lib")
+			into("${projectDir}/lib")
+		}
+		// META-INF
+		ant.copy(todir: "${projectDir}/META-INF") {
+			fileset(dir: "META-INF")
+		}
+		// icons
+		ant.copy(todir: "${projectDir}/icons") {
+			fileset(dir: "icons")
+		}
+		// plugin.xml
+		ant.copy(tofile: "${projectDir}/plugin.xml", file: "plugin.xml")
+		
+		// build.properties
+		ant.copy(tofile: "${projectDir}/build.properties", file: "build.properties")
+		
+		// eclipse workspace resources for eclipse PDE build
+		ant.unzip(src: "eclipse/metadata.zip", dest: "${workspaceDir}/.metadata")
+		ant.copy(todir: "${projectDir}/.settings") {
+			fileset(dir: "eclipse/settings")
+		}
+		ant.copy(tofile: "${projectDir}/.project", file: ".project")
+		ant.copy(tofile: "${projectDir}/.classpath", file: ".classpath")
+		
+		ant.copy(tofile: "${pdeRoot}/build.xml", file: "eclipse/build.xml", overwrite:true)
+		ant.replaceregexp(file: "${pdeRoot}/build.xml",
+			match:   'plugins="org.iplass.mtp.eclipse"',
+			replace: "plugins=\"org.iplass.mtp.eclipse\" qualifier=\"${qualifier}\"",
+			encoding: "UTF-8", byline: "true", flags: "g")	
+	}
+} 
+
+task downloadEclipseSdk() {
+	doLast {
+		if (!new File("${eclipseInstallDir}/eclipse.exe").exists()) {
+			def destZip = "${buildDir}/tmp/eclipseSdk.zip"
+			ant.mkdir(dir: "${buildDir}/tmp/")
+			
+			logger.quiet('downloading eclipse...')
+			ant.get(src: new URL(eclipseDownloadUrl), dest: destZip)
+			
+			logger.quiet('unzipping eclipse...')
+			ant.unzip(src: destZip, dest: "${eclipseInstallDir}/..")
+		}
+	}
+}
+
+task buildPlugin(type: JavaExec, dependsOn: [preBuildPlugin, downloadEclipseSdk]) {
+	def eclipseEquinoxLauncherPath = eclipseInstallDir + equinoxLauncher
+	main = "-jar"
+	args = [
+		eclipseEquinoxLauncherPath,
+		"-application", 
+			"org.eclipse.ant.core.antRunner",
+		"-data", 
+			"${pdeRoot}/workspace",
+		"-buildfile",
+			"${pdeRoot}/build.xml"
+	]
+}
+
+task postBuildPlugin(dependsOn: [buildPlugin]) {	  
+	doLast {		
+		def tmpDir = "${pdeRoot}/tmp"
+		def pluginJarName = ""
+		fileTree(dir: "${distDir}/plugins", include: "org.iplass.mtp.eclipse_*.jar").visit { jar ->
+			pluginJarName = jar.getName()
+		}
+		
+		ant.unzip(src: "${distDir}/plugins/${pluginJarName}", dest: tmpDir)
+		makeManifest(false, "${tmpDir}/META-INF/MANIFEST.MF")
+		
+		def rightPluginJarName = "org.iplass.mtp.eclipse_${pluginVer}.jar"
+		ant.zip(destfile: "${distExDir}/plugins/${rightPluginJarName}") {
+			zipfileset(dir: tmpDir) {
+				configurations.libIplass.each { File iplassJar ->
+					exclude(name: "lib/${iplassJar.getName()}")
+				}
+			}
+		}
+	}
+}
+
+task pluginZip(type: Zip, dependsOn: [postBuildPlugin]) {
+	archiveName "${baseName}-${version}.${extension}"
+	includeEmptyDirs false
+	inputs.file(distExDir).skipWhenEmpty()
+	includes ["plugins/"]
+	from distExDir
+	
+	doLast {
+		// restore for eclipse pde debbuging
+		makeManifest(false, manifest)
+	}
+}
+
+artifacts {
+	archives jar
+	archives pluginZip
+}

@@ -11,8 +11,10 @@ repositories {
 		//for jasper reports
 		artifactUrls 'http://jaspersoft.jfrog.io/jaspersoft/third-party-ce-artifacts/'
 	}
-	maven{
-	    url "${mavenUrl}"
+	if (project.hasProperty('mavenUrl')) {
+		maven {
+			url mavenUrl
+		}
 	}
 }
 	

@@ -1,3 +1,5 @@
+lang: [English](./README-EN.md) | [日本語](./README.md)
+
 # iplass-eclipse
 The repository for the Eclipse plugin for iPLAss.
 

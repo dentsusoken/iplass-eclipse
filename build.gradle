@@ -7,9 +7,9 @@ ext.manifest = "META-INF/MANIFEST.MF"
 
 repositories {
 	mavenCentral()
-	jcenter {
+	maven {
 		//for jasper reports
-		artifactUrls 'http://jaspersoft.jfrog.io/jaspersoft/third-party-ce-artifacts/'
+		url 'http://jaspersoft.jfrog.io/jaspersoft/third-party-ce-artifacts/'
 	}
 	if (project.hasProperty('mavenUrl')) {
 		maven {

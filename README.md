@@ -5,7 +5,7 @@ iPLAssのEclipseプラグインのリポジトリです。
 
 ## Related repositories
 
-* <https://github.com/ISID/iPLAss>
+* <https://github.com/dentsusoken/iPLAss>
 
 ## License
 [EPL-2.0](http://www.eclipse.org/legal/epl-2.0)  

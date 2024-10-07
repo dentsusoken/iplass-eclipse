@@ -3,6 +3,10 @@ lang: [English](./README-EN.md) | [日本語](./README.md)
 # iplass-eclipse
 iPLAssのEclipseプラグインのリポジトリです。
 
+iPLAss Eclipseプラグインの利用は非推奨となりました。  
+替わりにiPLAss Gradleプラグインをご利用ください。  
+https://github.com/dentsusoken/iplass-gradle-plugin 
+
 ## Related repositories
 
 * <https://github.com/dentsusoken/iPLAss>
